@@ -1,5 +1,5 @@
-resource "aws_ecs_task_definition" "backend" {
-  family                   = "backend-task"
+resource "aws_ecs_task_definition" "frontend" {
+  family                   = "frontend-task"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "512"
@@ -8,43 +8,43 @@ resource "aws_ecs_task_definition" "backend" {
 
   container_definitions = jsonencode([
     {
-      name      = "backend"
-      image     = var.backend_image
+      name      = "frontend"
+      image     = var.frontend_image
       essential = true
       portMappings = [{
-        containerPort = 8000
+        containerPort = 3000
         protocol      = "tcp"
       }]
     }
   ])
 }
 
-resource "aws_ecs_service" "backend" {
-  name = "backend"
-  cluster = var.ecs_cluster_id
-  task_definition = aws_ecs_task_definition.backend.arn
+resource "aws_ecs_service" "frontend" {
+  name            = "frontend"
+  cluster         = var.ecs_cluster_id
+  task_definition = aws_ecs_task_definition.frontend.arn
   launch_type     = "FARGATE"
   desired_count   = 2
   network_configuration {
     subnets          = var.private_subnets
     assign_public_ip = false
-    security_groups  = [aws_security_group.backend.id]
+    security_groups  = [aws_security_group.frontend.id]
   }
   load_balancer {
-    target_group_arn = var.backend_target_group_arn
-    container_name   = "backend"
-    container_port   = 8000
+    target_group_arn = var.frontend_target_group_arn
+    container_name   = "frontend"
+    container_port   = 3000
   }
 }
 
-resource "aws_security_group" "backend" {
-  name        = "backend-sg"
+resource "aws_security_group" "frontend" {
+  name        = "frontend-sg"
   vpc_id      = var.vpc_id
-  description = "Allow backend traffic from ALB"
+  description = "Allow frontend traffic from ALB"
 
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = 3000
+    to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -57,8 +57,9 @@ resource "aws_security_group" "backend" {
   }
 }
 
+
 resource "aws_iam_role" "ecs_task_exec" {
-  name = "${var.environment}-ecs-task-exec-backend"
+  name = "${var.environment}-ecs-task-exec-frontend"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
