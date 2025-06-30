@@ -6,7 +6,22 @@ variable "instance_type" {
   default = "t2.micro"
 }
 
-variable "key_name" {
-  description = "SSH Key Pair name"
+variable "project_name" {
+  description = "The name of the current project we're working with"
   type        = string
+  default     = "matts-week21-tf-project"
+}
+
+variable "zones" {
+  type = list(string)
+  default = [
+    "eu-west-3a",
+    "eu-west-3b"
+  ]
+  description = "List of availability zones"
+}
+
+variable "vpc_cidr" {
+  description = "VPC CIDR"
+  default = "10.0.0.0/24"
 }
