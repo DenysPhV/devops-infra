@@ -4,25 +4,36 @@ resource "aws_vpc" "matts-week-21" {
 }
 
 # Creating our two subnets
-resource "aws_subnet" "subnet-1" {
-  vpc_id     = aws_vpc.matts-week-21.id
-  cidr_block = "10.0.1.0/24"
-  availability_zone = "${var.region}a"
+resource "aws_subnet" "subnet" {
+  count = length(var.zones)
+  vpc_id = aws_vpc.matts-week-21.id
+  cidr_block = cidrsubnet("10.0.0.0/16", 8, count.index + 1)
+  availability_zone = var.zones[count.index]
   map_public_ip_on_launch = true
-  tags = {
-    Name = "${var.project_name}-subnet-1"
-  }
-}
 
-resource "aws_subnet" "subnet-2" {
-  vpc_id     = aws_vpc.matts-week-21.id
-  cidr_block = "10.0.2.0/24"
-  availability_zone = "${var.region}b"
-  map_public_ip_on_launch = true
   tags = {
-    Name = "${var.project_name}-subnet-2"
+    Name = "${var.project_name}-subnet-${count.index + 1}"
   }
 }
+# resource "aws_subnet" "subnet-1" {
+#   vpc_id     = aws_vpc.matts-week-21.id
+#   cidr_block = "10.0.1.0/24"
+#   availability_zone = "${var.region}a"
+#   map_public_ip_on_launch = true
+#   tags = {
+#     Name = "${var.project_name}-subnet-1"
+#   }
+# }
+
+# resource "aws_subnet" "subnet-2" {
+#   vpc_id     = aws_vpc.matts-week-21.id
+#   cidr_block = "10.0.2.0/24"
+#   availability_zone = "${var.region}b"
+#   map_public_ip_on_launch = true
+#   tags = {
+#     Name = "${var.project_name}-subnet-2"
+#   }
+# }
 
 # Creating our internet gateway and attach it to the VPC
 resource "aws_internet_gateway" "matts-week-21-igw" {
@@ -44,7 +55,8 @@ resource "aws_route_table" "matts-week-21-rt" {
 }
 
 resource "aws_route_table_association" "matts-week-21-awsrta" {
-  subnet_id      = aws_subnet.subnet-1.id
+  count          = length(aws_subnet.subnet)
+  subnet_id      = aws_subnet.subnet[count.index].id
   route_table_id = aws_route_table.matts-week-21-rt.id
 }
 
@@ -104,7 +116,7 @@ resource "aws_autoscaling_group" "matts_week21_asg" {
   max_size             = 5
   min_size             = 2
   health_check_type    = "EC2"
-  vpc_zone_identifier  = [aws_subnet.subnet-1.id, aws_subnet.subnet-2.id]
+  vpc_zone_identifier  = [for subnet in aws_subnet.subnet : subnet.id]
 
   launch_template {
     id      = aws_launch_template.matts_week21_lt.id
@@ -129,3 +141,19 @@ resource "aws_lb_target_group" "matts-week21-lbtg" {
   protocol = "HTTP"
   vpc_id   = aws_vpc.matts-week-21.id
 }
+
+# resource "aws_cloudwatch_metric_alarm" "high_cpu" {
+#   alarm_name          = "high-cpu-autoscaling"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = 2
+#   metric_name         = "CPUUtilization"
+#   namespace           = "AWS/EC2"
+#   period              = 120
+#   statistic           = "Average"
+#   threshold           = 80
+#   alarm_description   = "Triggered when CPU > 80%"
+#   dimensions = {
+#     AutoScalingGroupName = aws_autoscaling_group.matts_week21_asg.name
+#   }
+# }
+

@@ -3,6 +3,7 @@ variable "region" {
 }
 
 variable "instance_type" {
+  type = string
   default = "t2.micro"
 }
 
@@ -21,7 +22,7 @@ variable "zones" {
   description = "List of availability zones"
 }
 
-variable "vpc_cidr" {
-  description = "VPC CIDR"
-  default = "10.0.0.0/24"
-}
+# variable "vpc_cidr" {
+#   description = "VPC CIDR"
+#   default = "10.0.0.0/24"
+# }
