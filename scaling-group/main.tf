@@ -1,136 +1,46 @@
 # Creating our Week 21 VPC
-resource "aws_vpc" "matts-week-21" {
-  cidr_block = "10.0.0.0/16"
+module "vpc" {
+  source       = "./modules/vpc"
+  vpc_cidr     = "10.0.0.0/16"
+  project_name = var.project_name
 }
 
 # Creating our two subnets
-resource "aws_subnet" "subnet" {
-  count = length(var.zones)
-  vpc_id = aws_vpc.matts-week-21.id
-  cidr_block = cidrsubnet("10.0.0.0/16", 8, count.index + 1)
-  availability_zone = var.zones[count.index]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "${var.project_name}-subnet-${count.index + 1}"
-  }
-}
-# resource "aws_subnet" "subnet-1" {
-#   vpc_id     = aws_vpc.matts-week-21.id
-#   cidr_block = "10.0.1.0/24"
-#   availability_zone = "${var.region}a"
-#   map_public_ip_on_launch = true
-#   tags = {
-#     Name = "${var.project_name}-subnet-1"
-#   }
-# }
-
-# resource "aws_subnet" "subnet-2" {
-#   vpc_id     = aws_vpc.matts-week-21.id
-#   cidr_block = "10.0.2.0/24"
-#   availability_zone = "${var.region}b"
-#   map_public_ip_on_launch = true
-#   tags = {
-#     Name = "${var.project_name}-subnet-2"
-#   }
-# }
-
-# Creating our internet gateway and attach it to the VPC
-resource "aws_internet_gateway" "matts-week-21-igw" {
-  vpc_id = aws_vpc.matts-week-21.id
-  tags = {
-    Name = "${var.project_name}-igw"
-  }
-}
-
-resource "aws_route_table" "matts-week-21-rt" {
-  vpc_id = aws_vpc.matts-week-21.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.matts-week-21-igw.id
-  }
-  tags = {
-    Name = "${var.project_name}-route-table"
-  }
-}
-
-resource "aws_route_table_association" "matts-week-21-awsrta" {
-  count          = length(aws_subnet.subnet)
-  subnet_id      = aws_subnet.subnet[count.index].id
-  route_table_id = aws_route_table.matts-week-21-rt.id
+module "subnet" {
+  source          = "./modules/subnet"
+  vpc_id          = module.vpc.vpc_id
+  base_cidr_block = "10.0.0.0/16"
+  zones           = var.zones
+  route_table_id  = module.vpc.route_table_id
+  project_name    = var.project_name
 }
 
 # Creating our security group that allows traffic from the internet
-resource "aws_security_group" "allow-tls" {
-  name        = "allow-tls"
-  description = "Allow TLS inbound traffic from the internet"
-  vpc_id      = aws_vpc.matts-week-21.id
-
-  ingress {
-    description      = "HTTP from VPC"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks      = [aws_vpc.matts-week-21.cidr_block]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "allow-tls"
-  }
+module "sg" {
+  source       = "./modules/security_group"
+  vpc_id       = module.vpc.vpc_id
+  project_name = var.project_name
 }
 
 # Firewall configuration for the our instances
-resource "aws_security_group_rule" "matts-week-21-http-inbound" {
-  type        = "ingress"
-  from_port   = 80
-  to_port     = 80
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.allow-tls.id
+module "asg" {
+  source         = "./modules/autoscaling"
+  subnet_ids     = module.subnet.subnet_ids
+  project_name   = var.project_name
+  ami_id         = module.asg.ami_id
+  instance_type  = var.instance_type
+  sg_id          = module.sg.sg_id
 }
 
-resource "aws_launch_template" "matts_week21_lt" {
-  name_prefix   = "${var.project_name}-lt"
-  image_id      = data.aws_ami.latest_amazon_linux.id
-  instance_type = var.instance_type
 
-  vpc_security_group_ids = [aws_security_group.allow-tls.id]
-
-  user_data = filebase64("${path.module}/templates/user_data.sh")
-
-  lifecycle {
-    create_before_destroy = true
+resource "aws_route_table" "matts-week-21-rt" {
+  vpc_id = module.vpc.vpc_id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = module.vpc.igw_id
   }
-}
-
-resource "aws_autoscaling_group" "matts_week21_asg" {
-  name                 = "${var.project_name}-asg"
-  desired_capacity     = 2
-  max_size             = 5
-  min_size             = 2
-  health_check_type    = "EC2"
-  vpc_zone_identifier  = [for subnet in aws_subnet.subnet : subnet.id]
-
-  launch_template {
-    id      = aws_launch_template.matts_week21_lt.id
-    version = "$Latest"
-  }
-
-  tag {
-    key                 = "Name"
-    value               = "${var.project_name}-asg-instance"
-    propagate_at_launch = true
-  }
-
-  lifecycle {
-    create_before_destroy = true
+  tags = {
+    Name = "${var.project_name}-route-table"
   }
 }
 
@@ -139,21 +49,21 @@ resource "aws_lb_target_group" "matts-week21-lbtg" {
   name     = "${var.project_name}-lb-tg"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.matts-week-21.id
+  vpc_id = module.vpc.vpc_id
 }
 
-# resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-#   alarm_name          = "high-cpu-autoscaling"
-#   comparison_operator = "GreaterThanThreshold"
-#   evaluation_periods  = 2
-#   metric_name         = "CPUUtilization"
-#   namespace           = "AWS/EC2"
-#   period              = 120
-#   statistic           = "Average"
-#   threshold           = 80
-#   alarm_description   = "Triggered when CPU > 80%"
-#   dimensions = {
-#     AutoScalingGroupName = aws_autoscaling_group.matts_week21_asg.name
-#   }
-# }
+resource "aws_cloudwatch_metric_alarm" "high_cpu" {
+  alarm_name          = "high-cpu-autoscaling"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 120
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Triggered when CPU > 80%"
+  dimensions = {
+    AutoScalingGroupName = module.asg.asg_name
+  }
+}
 

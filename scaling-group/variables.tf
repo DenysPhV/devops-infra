@@ -10,7 +10,7 @@ variable "instance_type" {
 variable "project_name" {
   description = "The name of the current project we're working with"
   type        = string
-  default     = "matts-week21-tf-project"
+  default     = "matts-week21"
 }
 
 variable "zones" {
@@ -21,8 +21,3 @@ variable "zones" {
   ]
   description = "List of availability zones"
 }
-
-# variable "vpc_cidr" {
-#   description = "VPC CIDR"
-#   default = "10.0.0.0/24"
-# }
