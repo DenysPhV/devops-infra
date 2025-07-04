@@ -7,3 +7,8 @@ variable "project_name" {
   description = "Project name for tagging"
   type        = string
 }
+
+variable "name" {
+  type        = string
+  description = "Name (frontend / backend)"
+}

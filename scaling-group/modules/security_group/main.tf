@@ -1,5 +1,5 @@
 resource "aws_security_group" "this" {
-  name        = "allow-tls"
+  name        = "allow-tls-${var.name}"
   description = "Allow TLS inbound traffic from the internet"
   vpc_id      = var.vpc_id
 

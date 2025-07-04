@@ -1,39 +1,71 @@
+# main.tf
 # Creating our Week 21 VPC
 module "vpc" {
   source       = "./modules/vpc"
-  vpc_cidr     = "10.0.0.0/16"
+  vpc_cidr     = var.vpc_cidr
   project_name = var.project_name
+  public_subnets = var.public_subnets
+  private_subnets= var.private_subnets
+  azs            = var.availability_zones
 }
 
 # Creating our two subnets
 module "subnet" {
   source          = "./modules/subnet"
   vpc_id          = module.vpc.vpc_id
-  base_cidr_block = "10.0.0.0/16"
+  base_cidr_block = var.vpc_cidr
   zones           = var.zones
-  route_table_id  = module.vpc.route_table_id
   project_name    = var.project_name
+  public_route_table_id  = module.vpc.public_route_table_id
+  private_route_table_id = module.vpc.private_route_table_id
+  public_subnets  = var.public_subnets
+  private_subnets = var.private_subnets
 }
 
 # Creating our security group that allows traffic from the internet
-module "sg" {
+module "sg_frontend" {
   source       = "./modules/security_group"
   vpc_id       = module.vpc.vpc_id
   project_name = var.project_name
+  name         = "frontend"
+}
+
+module "sg_backend" {
+  source       = "./modules/security_group"
+  vpc_id       = module.vpc.vpc_id
+  project_name = var.project_name
+  name         = "backend"
 }
 
 # Firewall configuration for the our instances
-module "asg" {
+# TODO - ASG group for Front (only ALB allowed)
+# TODO - ASG group for Back (only Front allowed)
+module "asg_frontend" {
   source         = "./modules/autoscaling"
-  subnet_ids     = module.subnet.subnet_ids
+  name           = "frontend"
   project_name   = var.project_name
-  ami_id         = module.asg.ami_id
+  ami_id         = module.asg_frontend.ami_id
   instance_type  = var.instance_type
-  sg_id          = module.sg.sg_id
+  subnet_ids     = module.subnet.public_subnet_ids
+  sg_id          = module.sg_frontend.sg_id
+  user_data      = "frontend_user_data.sh"
 }
 
+module "asg_backend" {
+  source         = "./modules/autoscaling"
+  name           = "backend"
+  project_name   = var.project_name
+  ami_id         = module.asg_backend.ami_id
+  instance_type  = var.instance_type
+  subnet_ids     = module.subnet.public_subnet_ids
+  sg_id          = module.sg_backend.sg_id
+  user_data      = "backend_user_data.sh"
+}
 
-resource "aws_route_table" "matts-week-21-rt" {
+# TODO cidr block to tfvars
+
+# change name resource
+resource "aws_route_table" "rt" {
   vpc_id = module.vpc.vpc_id
   route {
     cidr_block = "0.0.0.0/0"
@@ -44,16 +76,34 @@ resource "aws_route_table" "matts-week-21-rt" {
   }
 }
 
-# Creating our Application Load Balancer target group
-resource "aws_lb_target_group" "matts-week21-lbtg" {
-  name     = "${var.project_name}-lb-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id = module.vpc.vpc_id
+#TODO load balancer module & change name resource 
+# TODO - ALB for Front 
+# TODO - ALB for Back 
+module "alb_frontend" {
+  source            = "./modules/alb"
+  name              = "frontend"
+  environment       = var.environment
+  vpc_id            = module.vpc.vpc_id
+  public_subnets    = module.subnet.public_subnet_ids
+  project_name      = var.project_name
+  target_port       = 80
+  health_check_path = "/"
 }
 
-resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-  alarm_name          = "high-cpu-autoscaling"
+module "alb_backend" {
+  source            = "./modules/alb"
+  name              = "backend"
+  environment       = var.environment
+  vpc_id            = module.vpc.vpc_id
+  public_subnets    = module.subnet.public_subnet_ids
+  project_name      = var.project_name
+  target_port       = 8000
+  health_check_path = "/health"
+}
+
+# TODO Trigger for CPU 
+resource "aws_cloudwatch_metric_alarm" "high_cpu_frontend" {
+  alarm_name          = "high_cpu_frontend"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -61,9 +111,27 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   period              = 120
   statistic           = "Average"
   threshold           = 80
-  alarm_description   = "Triggered when CPU > 80%"
+  alarm_description   = "Alarm when frontend CPU exceeds 80%"
   dimensions = {
-    AutoScalingGroupName = module.asg.asg_name
+    AutoScalingGroupName = module.asg_frontend.asg_name
   }
 }
 
+resource "aws_cloudwatch_metric_alarm" "high_cpu_backend" {
+  alarm_name          = "high-cpu-backend"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 120
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Alarm when backend CPU exceeds 80%"
+  dimensions = {
+    AutoScalingGroupName = module.asg_backend.asg_name
+  }
+}
+
+# TODO - Optional Trigger for RAM
+# TODO - Optional add spot instaces in the code
+# Then Lambda & S3

@@ -1,6 +1,9 @@
-variable "region" {
-  default = "eu-west-3"
-}
+variable "region" {}
+variable "environment" {}
+variable "public_subnets" {}
+variable "private_subnets" {}
+variable "availability_zones" {}
+variable "vpc_cidr" {}
 
 variable "instance_type" {
   type = string
@@ -10,7 +13,6 @@ variable "instance_type" {
 variable "project_name" {
   description = "The name of the current project we're working with"
   type        = string
-  default     = "matts-week21"
 }
 
 variable "zones" {
@@ -21,3 +23,5 @@ variable "zones" {
   ]
   description = "List of availability zones"
 }
+
+
