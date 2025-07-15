@@ -30,15 +30,18 @@ jobs:
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
         id: plan-upload
         with:
-          workspace: ${{ env.TF_WORKSPACE }}
-          directory: ${{ env.CONFIG_DIRECTORY }}
+          hostname: app.terraform.io
+          token: ${{ secrets.TF_API_TOKEN }}
+          organization: denys_filichkin
+          workspace: "terraform-aws-dev"
+          directory: ./infra-container
           speculative: true
 
       - name: Create Plan Run
         uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
         id: plan-run
         with:
-          workspace: ${{ env.TF_WORKSPACE }}
+          workspace: "terraform-aws-dev"
           configuration_version: ${{ steps.plan-upload.outputs.configuration_version_id }}
           plan_only: true
 

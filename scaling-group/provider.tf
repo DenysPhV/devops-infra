@@ -1,10 +1,10 @@
 terraform {
-   cloud {
-    organization = "Intership"
-    workspaces {
-      tags = ["Intership-test"]
-    }
-  }
+  #  cloud {
+  #   organization = "denys_filichkin"
+  #   workspaces {
+  #     name = "terraform-aws-dev" 
+  #   }
+  # }
 
   required_providers {
     aws = {
