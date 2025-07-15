@@ -35,7 +35,7 @@ resource "aws_security_group" "alb" {
 # Creating our Application Load Balancer target group
 resource "aws_lb_target_group" "frontend" {
   name = "${var.project_name}-${var.name}-frontend-tg"
-  port        = 3000
+  port        = 80
   protocol    = "HTTP"
   target_type = "instance"
   vpc_id      = var.vpc_id
@@ -61,6 +61,7 @@ resource "aws_lb_target_group" "backend" {
   health_check {
     path                = "/health"
     matcher             = "200"
+    port                = "traffic-port"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
@@ -74,18 +75,14 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
   default_action {
-    type             = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "404 not found"
-      status_code  = "404"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
   }
 }
 
 resource "aws_lb_listener_rule" "frontend" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 1
+  priority     = 5
 
   condition {
     path_pattern {
@@ -101,7 +98,7 @@ resource "aws_lb_listener_rule" "frontend" {
 
 resource "aws_lb_listener_rule" "backend" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 2
+  priority     = 10
 
   condition {
     path_pattern {
