@@ -1,4 +1,11 @@
 terraform {
+   cloud {
+    organization = "Intership"
+    workspaces {
+      tags = ["Intership-test"]
+    }
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

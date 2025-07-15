@@ -36,5 +36,6 @@ resource "aws_route_table_association" "main_route_association" {
 #     bucket = "ec-terraform"
 #     key = "state-bucket/terraform.tfstate"
 #     dynamodb_table = "ec-terraform-tb"
+#     profile = "denysfilichkin"
 #   }
 # }
