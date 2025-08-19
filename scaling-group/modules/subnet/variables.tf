@@ -1,29 +1,33 @@
-variable "vpc_id" {}
+variable "vpc_id" {
+  type        = string
+  description = "ID of the VPC"
+}
+
+variable "project_name" {
+  type        = string
+  description = "Project name for tagging"
+}
+variable "vpc_cidr" {
+  type = string
+}
 variable "zones" {
   type = list(string)
 }
-variable "project_name" {}
-variable "base_cidr_block" {}
 
-# variable "route_table_id" {
-#   description = "ID of the route table to associate subnets with"
-#   type        = string
-# }
-
-variable "public_route_table_id" {
-  description = "ID of the route table to associate subnets with"
+variable "internet_gateway_id" {
   type        = string
+  description = "ID of the Internet Gateway (for depends_on)"
 }
 
-variable "private_route_table_id" {
-  description = "ID of the route table to associate subnets with"
-  type        = string
+# ===============================
+# Maps
+# ===============================
+variable "public_subnets_map" {
+  type        = map(string)
+  description = "Map of public subnets: { az = cidr }"
 }
 
-variable "public_subnets" {
-  type = list(string)
-}
-
-variable "private_subnets" {
-  type = list(string)
+variable "private_subnets_map" {
+  type        = map(string)
+  description = "Map of private subnets: { az = cidr }"
 }

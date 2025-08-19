@@ -13,3 +13,7 @@ output "subnet_ids" {
   )
 }
 
+output "nat_gateway_ids" {
+  value = [for gw in aws_nat_gateway.nat : gw.id]
+}
+

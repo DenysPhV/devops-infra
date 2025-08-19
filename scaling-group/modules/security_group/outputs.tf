@@ -1,11 +1,9 @@
 output "alb_sg_id" {
-  value = aws_security_group.alb_sg.id
+  value       = aws_security_group.alb_sg.id
+  description = "ID of the ALB security group"
 }
 
-output "frontend_sg_id" {
-  value = aws_security_group.frontend_sg.id
-}
-
-output "backend_sg_id" {
-  value = aws_security_group.backend_sg.id
+output "asg_sg_id" {
+  value       = aws_security_group.asg_sg.id
+  description = "ID of the ASG security group"
 }

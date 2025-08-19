@@ -1,37 +1,45 @@
 #modules/subnet/main.tf
-
 resource "aws_subnet" "public" {
-  count                   = length(var.public_subnets)
+  for_each = var.public_subnets_map
   vpc_id                  = var.vpc_id
-  cidr_block              = var.public_subnets[count.index]
-  availability_zone       = var.zones[count.index]
+  cidr_block              = each.value
+  availability_zone       = each.key
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-subnet-${count.index + 1}"
+    Name = "${var.project_name}-public-subnet-${each.key}"
   }
+}
+
+resource "aws_eip" "nat" {
+  for_each = var.public_subnets_map
+  domain = "vpc"
+  tags = {
+    Name = "${var.project_name}-nat-eip-${each.key}"
+  }
+}
+
+resource "aws_nat_gateway" "nat" {
+  for_each = var.public_subnets_map
+  subnet_id     = aws_subnet.public[each.key].id
+  allocation_id = aws_eip.nat[each.key].id
+  tags = {
+    Name = "${var.project_name}-nat-gw-${each.key}"
+  }
+
+   depends_on = [var.internet_gateway_id]
 }
 
 resource "aws_subnet" "private" {
-  count                   = length(var.private_subnets)
+  for_each = var.private_subnets_map
   vpc_id                  = var.vpc_id
-  cidr_block              = var.private_subnets[count.index]
-  availability_zone       = var.zones[count.index]
+  cidr_block        = each.value
+  availability_zone = each.key
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "${var.project_name}-private-subnet-${count.index + 1}"
+    Name = "${var.project_name}-private-subnet-${each.key}"
   }
 }
 
-resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = var.public_route_table_id
-}
 
-resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = var.private_route_table_id
-}
