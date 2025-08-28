@@ -7,12 +7,12 @@ output "backend_tg_arn" {
 }
 
 output "alb_arn" {
-  value       = aws_lb.this.arn
+  value       = aws_lb.web_lb.arn
   description = "ARN of the ALB"
 }
 
 output "alb_dns_name" {
-  value       = aws_lb.this.dns_name
+  value       = aws_lb.web_lb.dns_name
   description = "DNS name of the ALB"
 }
 

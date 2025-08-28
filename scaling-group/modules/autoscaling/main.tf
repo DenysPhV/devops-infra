@@ -29,31 +29,54 @@ resource "aws_launch_template" "lt" {
 
 
 resource "aws_autoscaling_group" "asg" {
-  name                 = "${var.project_name}-${var.name}-asg"
+  name                 = "${var.project_name}-${var.name}-asg-ver-${aws_launch_template.lt.latest_version}"
   desired_capacity     = var.asg_desired_capacity
   min_size             = var.asg_min_size
   max_size             = var.asg_max_size
   health_check_type    = var.asg_health_check_type
   vpc_zone_identifier  = var.subnet_ids
+  target_group_arns = [var.target_group_arn]
 
   launch_template {
     id      = aws_launch_template.lt.id
-    version = "$Latest"
+    version = aws_launch_template.lt.latest_version
   }
 
-  target_group_arns = [var.target_group_arn]
+  enabled_metrics = [ 
+    "GroupMinSize",
+    "GroupMaxSize",
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupTotalInstances"
+  ]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.project_name}-${var.name}-ec2"
+  metrics_granularity = "1Minute"
+
+  dynamic "tag" {
+    for_each = {
+      Name = "Server in ${var.name}-ASG-v${aws_launch_template.lt.latest_version}"
+      value = "${var.project_name}-${var.name}-ec2"
+    }
+    content {
+    key                 = tag.key
+    value               = tag.value
     propagate_at_launch = true
+   }
   }
-
+  
   lifecycle {
     create_before_destroy = true
   }
 }
 
+
+resource "aws_autoscaling_policy" "web_policy_up" {
+  name = "web_policy_up"
+  scaling_adjustment = 1
+  adjustment_type = "ChangeInCapacity"
+  cooldown = 300
+  autoscaling_group_name = aws_autoscaling_group.asg.name
+}
 
 
 

@@ -26,12 +26,14 @@ variable "private_subnets_map" {
 # Zones
 # ================================
 variable "availability_zones" {
-  type = list(string)
-}
-variable "zones" {
   type        = list(string)
   description = "List of availability zones"
 }
+
+# variable "zones" {
+#   type        = list(string)
+#   description = "List of availability zones"
+# }
 
 # ================================
 # CIDR blocks

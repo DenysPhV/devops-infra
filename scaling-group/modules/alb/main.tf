@@ -4,8 +4,8 @@ resource "random_string" "suffix" {
   special = false
 }
 
-resource "aws_lb" "this" {
-  name               = "${var.environment}-${random_string.suffix.result}-${var.name}-alb"
+resource "aws_lb" "web_lb" {
+  name               = "${var.environment}-${random_string.suffix.result}-${var.name}-web-lb"
   load_balancer_type = "application"
   internal           = false
   security_groups    = [var.security_group_id]
@@ -19,6 +19,7 @@ resource "aws_lb_target_group" "frontend" {
   protocol    = "HTTP"
   target_type = "instance"
   vpc_id      = var.vpc_id
+  deregistration_delay = 5
 
   health_check {
     path                = var.frontend_health_check_path
@@ -28,7 +29,6 @@ resource "aws_lb_target_group" "frontend" {
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
-  
 }
 
 resource "aws_lb_target_group" "backend" {
@@ -37,6 +37,7 @@ resource "aws_lb_target_group" "backend" {
   protocol    = "HTTP"
   target_type = "instance"
   vpc_id      = var.vpc_id
+  deregistration_delay = 5
 
   health_check {
     path                = var.backend_health_check_path
@@ -51,7 +52,7 @@ resource "aws_lb_target_group" "backend" {
 
 # frontend is here
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.this.arn
+  load_balancer_arn = aws_lb.web_lb.arn
   port              = 80
   protocol          = "HTTP"
   default_action {

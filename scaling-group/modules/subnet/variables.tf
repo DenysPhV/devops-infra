@@ -10,7 +10,7 @@ variable "project_name" {
 variable "vpc_cidr" {
   type = string
 }
-variable "zones" {
+variable "availability_zones" {
   type = list(string)
 }
 

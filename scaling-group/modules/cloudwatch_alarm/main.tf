@@ -1,66 +1,55 @@
-resource "aws_cloudwatch_metric_alarm" "high_cpu_frontend" {
-  alarm_name          = "high_cpu_frontend"
+# ===========================================================
+# metrics
+# ===========================================================
+
+# by CPUs
+resource "aws_cloudwatch_metric_alarm" "high_cpu" {
+  alarm_name          = "${var.project_name}-${var.name}-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
-  period              = 120
+  period              = 60
   statistic           = "Average"
-  threshold           = 80
+  threshold           = 40
   alarm_description   = "Alarm when frontend CPU exceeds 80%"
+  alarm_actions = [var.scale_out_policy_arn]
 
   dimensions = {
-    AutoScalingGroupName = var.frontend_asg_name
+    AutoScalingGroupName = var.asg_name
+  }
+
+  tags = {
+    Environment = "${var.environment}"
+    Project = "${var.project_name}"
+    Provisioner="cloudwatch"
+    Name = "${var.name}.memory"
   }
 }
 
-# TODO Trigger for  RAM 
-resource "aws_cloudwatch_metric_alarm" "high_memory_frontend" {
-  alarm_name          = "high_memory_frontend"
+# by RAM
+resource "aws_cloudwatch_metric_alarm" "ram_high_alarm" {
+  alarm_name          = "${var.project_name}-${var.name}-ram-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "mem_used_percent"
   namespace           = "CWAgent"
-  period              = 120
+  period              = 60
   statistic           = "Average"
-  threshold           = 80
-  alarm_description   = "Alarm when frontend memory usage exceeds 80%"
-
+  threshold           = 75
+  alarm_description   = "Alarm when RAM usage exceeds 75%"
   dimensions = {
-    AutoScalingGroupName = var.frontend_asg_name
+    AutoScalingGroupName = var.asg_name
   }
+  alarm_actions = [var.scale_out_policy_arn]
+
+   tags = {
+    Environment = "${var.environment}"
+    Project = "${var.project_name}"
+    Provisioner="cloudwatch"
+    Name = "${var.name}.memory"
+  }
+
 }
 
-resource "aws_cloudwatch_metric_alarm" "high_cpu_backend" {
-  alarm_name          = "high-cpu-backend"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = 120
-  statistic           = "Average"
-  threshold           = 80
-  alarm_description   = "Alarm when backend CPU exceeds 80%"
 
-  dimensions = {
-    AutoScalingGroupName = var.backend_asg_name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "memory_high" {
-  alarm_name          = "high-memory-usage"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "mem_used_percent"
-  namespace           = "CWAgent"
-  period              = "60"
-  statistic           = "Average"
-  threshold           = "80"
-  alarm_description   = "High RAM usage detected"
-
-  dimensions = {
-    AutoScalingGroupName = var.frontend_asg_name
-  }
-  
-  alarm_actions = [var.alarm_action_arn]
-}

@@ -8,13 +8,7 @@ variable "name" {
   description = "Frontend or Backend"
 }
 
-variable "asg_name" {
-  type        = string
-  description = "Auto Scaling Group name for alarm dimension"
-}
-
-variable "scale_out_policy_arn" {
-  type        = string
-  description = "ARN of the scale-out policy triggered by this alarm"
+variable "cwagent_config_json" {
+  type = string
 }
 

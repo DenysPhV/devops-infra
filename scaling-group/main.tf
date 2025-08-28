@@ -9,7 +9,7 @@ module "vpc" {
 module "routes" {
   source                 = "./modules/routes"
   project_name           = var.project_name
-  zones                  = var.availability_zones
+  availability_zones     = var.availability_zones
   vpc_id                 = module.vpc.vpc_id
   internet_gateway_id    = module.vpc.internet_gateway_id
   nat_gateway_ids        = module.subnet.nat_gateway_ids
@@ -22,7 +22,7 @@ module "routes" {
 module "subnet" {
   source              = "./modules/subnet"
   vpc_cidr            = var.vpc_cidr
-  zones               = var.zones
+  availability_zones  = var.availability_zones
   project_name        = var.project_name
   public_subnets_map  = var.public_subnets_map
   private_subnets_map = var.private_subnets_map
@@ -131,77 +131,61 @@ module "alb_app" {
   name              = "app"
   environment       = var.environment
   project_name      = var.project_name
+  cidr_blocks       = var.cidr_blocks
+  open_cidr_block   = var.open_cidr_block
+  frontend_port              = var.frontend_port
+  frontend_health_check_path = var.frontend_health_check_path
+  backend_port              = var.backend_port
+  backend_health_check_path = var.backend_health_check_path
+
   security_group_id = module.frontend_sg.alb_sg_id
   vpc_id            = module.vpc.vpc_id
   public_subnets    = module.subnet.public_subnet_ids
   private_subnets   = module.subnet.private_subnet_ids
-  cidr_blocks       = var.cidr_blocks
-  open_cidr_block   = var.open_cidr_block
-
-  frontend_port              = var.frontend_port
-  frontend_health_check_path = var.frontend_health_check_path
-
-  backend_port              = var.backend_port
-  backend_health_check_path = var.backend_health_check_path
 }
-
 
 module "cloudwatch_agent_frontend" {
-  name   = "frontend"
-  source = "./modules/cloudwatch_agent"
-
-  project_name = var.project_name
-  asg_name     = module.asg_frontend.asg_name
-
-  scale_out_policy_arn = aws_autoscaling_policy.frontend_scale_out.arn
+  name                = "agent-frontend"
+  source              = "./modules/cloudwatch_agent"
+  project_name        = var.project_name
+  cwagent_config_json = filebase64("${path.module}/templates/cloudwatch-config.json")
 }
 
-module "cloudwatch_alarm" {
-  name         = "monitoring"
+module "cloudwatch_agent_backend" {
+  name                = "agent-backend"
+  source              = "./modules/cloudwatch_agent"
+  project_name        = var.project_name
+  cwagent_config_json = filebase64("${path.module}/templates/cloudwatch-config.json")
+}
+# TODO - Trigger for RAM
+module "cloudwatch_alarm_frontend" {
+  name         = "frontend-monitoring"
   source       = "./modules/cloudwatch_alarm"
   project_name = var.project_name
+  # tags
+  instance_type = var.instance_type
+  environment   = var.environment
+  ami_id        = var.iam_instance_profile_name
+  instance_id   = var.allow_account_id
 
-  frontend_asg_name = module.asg_frontend.asg_name
-  backend_asg_name  = module.asg_backend.asg_name
-
-  alarm_action_arn = aws_autoscaling_policy.frontend_scale_out.arn
+  asg_name             = module.asg_frontend.asg_name
+  scale_out_policy_arn = module.asg_frontend.scale_out_policy_arn
+  alarm_action_arn     = module.asg_frontend.scale_out_policy_arn
 }
 
-resource "aws_autoscaling_policy" "frontend_scale_out" {
-  name               = "${var.project_name}-frontend-scale-out"
-  adjustment_type    = "ChangeInCapacity"
-  scaling_adjustment = 1
-  cooldown           = 300
+module "cloudwatch_alarm_backend" {
+  name         = "backend-monitoring"
+  source       = "./modules/cloudwatch_alarm"
+  project_name = var.project_name
+  # tags
+  instance_type = var.instance_type
+  environment   = var.environment
+  ami_id        = var.iam_instance_profile_name
+  instance_id   = var.allow_account_id
 
-  autoscaling_group_name = module.asg_frontend.asg_name
+  asg_name             = module.asg_backend.asg_name
+  scale_out_policy_arn = module.asg_backend.scale_out_policy_arn
+  alarm_action_arn     = module.asg_backend.scale_out_policy_arn
 }
 
-# TODO cidr block to tfvars
-
-# change name resource
-# resource "aws_route_table" "rt" {
-#   vpc_id = module.vpc.vpc_id
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = module.vpc.igw_id
-#   }
-#   tags = {
-#     Name = "${var.project_name}-route-table"
-#   }
-# }
-
-# resource "aws_route_table_association" "public" {
-#   count          = length(module.subnet.public_subnet_ids)
-#   subnet_id      = module.subnet.public_subnet_ids[count.index]
-#   route_table_id = module.routes.public_route_table_id
-# }
-
-# resource "aws_route_table_association" "private" {
-#   count          = length(module.subnet.private_subnet_ids)
-#   subnet_id      = module.subnet.private_subnet_ids[count.index]
-#   route_table_id = module.routes.private_route_table_ids[count.index]
-# }
-
-
-# TODO - Trigger for RAM
 # Then Lambda & S3

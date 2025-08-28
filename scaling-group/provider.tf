@@ -12,4 +12,12 @@ terraform {
 provider "aws" {
   profile = "denysfilichkin"
   region  = var.region
+
+  default_tags {
+    tags = {
+      Owner = "Denys Filichkin"
+      CreateBy = "Terraform"
+      Internship = "Internship with mentor"
+    }
+  }
 }
